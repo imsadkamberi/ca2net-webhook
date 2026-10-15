@@ -3,14 +3,13 @@ import requests
 
 app = Flask(__name__)
 
-# Konfigurimet e tua
 TELEGRAM_TOKEN = "8857720884:AAFZYZxsy3S16esXqamy1YGCADnb9XjiK7Q"
-CHAT_ID = "901764770"  # Vendosni ID-në tuaj numerike këtu
+CHAT_ID = "901764770"
 
 
 def send_telegram(text):
   url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-  payload = {"chat_id": CHAT_ID, "text": text, "parse_mode": "Markdown"}
+  payload = {"chat_id": CHAT_ID, "text": text}
   try:
     requests.post(url, json=payload)
   except Exception as e:
@@ -19,17 +18,25 @@ def send_telegram(text):
 
 @app.route("/", methods=["GET"])
 def home():
-  return "CA2NET Bot is running!", 200
+  return "Ca2net Bot is running!", 200
 
 
-@app.route("/webhook", methods=["POST"])
+# Kemi shtuar ["GET", "POST"] që të mos jep gabim nga shfletuesi
+@app.route("/webhook", methods=["GET", "POST"])
 def webhook():
-  data = request.json
-  if data:
-    msg = data.get("message", "Sinjal i ri nga TradingView!")
+  # Nëse hyhet nga shfletuesi (GET)
+  if request.method == "GET":
+    msg = request.args.get("message", "Testim nga shfletuesi direkt!")
     send_telegram(msg)
+    return "Mesazhi u dërgua me sukses në Telegram përmes GET!", 200
+
+  # Nëse vjen nga TradingView (POST)
+  data = request.json
+  if data and "message" in data:
+    send_telegram(data["message"])
     return "OK", 200
-  return "No data", 400
+
+  return "Bad Request", 400
 
 
 if __name__ == "__main__":
