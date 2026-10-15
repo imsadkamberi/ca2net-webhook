@@ -5,7 +5,7 @@ app = Flask(__name__)
 
 # Konfigurimet e tua
 TELEGRAM_TOKEN = "8857720884:AAFZYZxsy3S16esXqamy1YGCADnb9XjiK7Q"
-CHAT_ID = "ID_JUAJ_NUMERIKE"  # Vendosni ID-në tuaj numerike këtu
+CHAT_ID = "901764770"  # Vendosni ID-në tuaj numerike këtu
 
 
 def send_telegram(text):
