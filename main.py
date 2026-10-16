@@ -6,7 +6,7 @@ import requests
 app = Flask(__name__)
 
 # ==========================================
-# KONFIGURIMET E TUA (Lexohen nga Render Environment)
+# KONFIGURIMET E TUA
 # ==========================================
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "")
 CHAT_ID = "901764770"
@@ -31,24 +31,21 @@ def send_telegram(text):
 
 
 def analyze_and_filter_ict(ticker, timeframe, action, price, note):
-  """Kërkon nga Gemini të analizojë nëse ky set-up është i vlefshëm ICT.
-
-  Nëse po, kthen detajet; nëse jo, e refuzon që të mos dërgojë sinjale kot.
-  """
+  """Filtri i Gemini AI për të konfirmuar nëse setup-i ICT është i vlefshëm."""
   if not GEMINI_API_KEY:
-    return True, f"Set-up i pranuar pa filtrim AI (Mungon API Key): {note}"
+    return True, f"Set-up i pranuar (Mungon API Key): {note}"
 
   try:
     model = genai.GenerativeModel("gemini-2.5-flash")
     prompt = f"""
-        Je një krye-analist i tregjeve Forex dhe specialist i strategjisë ICT (Inner Circle Trader).
+        Je një krye-analist i tregjeve Forex dhe Crypto me strategjinë ICT (Inner Circle Trader).
         Vlerëso këtë sinjal të ardhur nga TradingView:
         - Aseti: {ticker} ({timeframe})
         - Veprimi: {action}
         - Çmimi aktual: {price}
         - Shënimi teknik: {note}
 
-        A ka ky set-up konfluencë të mjaftueshme ICT (p.sh. FVG, Order Block, ose Liquidity Sweep) për të marrë një trade me probabilitet të lartë tani?
+        A ka ky set-up konfluencë të mjaftueshme ICT (p.sh. FVG, Order Block, ose Liquidity Sweep) për të marrë një trade tani?
         Përgjigju I PARI fjalën "PO" ose "JO", dhe më pas jep një arsyetim profesional prej maksimalisht 2 fjalish në gjuhën shqipe.
         Format i kërkuar:
         VENDIMI: [PO ose JO]
@@ -63,15 +60,15 @@ def analyze_and_filter_ict(ticker, timeframe, action, price, note):
       reason = text.split("ARSYEJA:")[-1].strip()
       return True, reason
     else:
-      return False, "Set-up u refuzua nga filtri i Gemini (Nuk u dërgua në Telegram)."
+      return False, "Set-up u refuzua nga filtri i Gemini (Nuk u dërgua)."
   except Exception as e:
     print(f"Gemini filter error: {e}")
-    return True, f"Kaloi pa filtruar për shkak të gabimit të AI: {note}"
+    return True, f"Kaloi pa filtruar: {note}"
 
 
 @app.route("/", methods=["GET"])
 def home():
-  return "CA2NET ICT + Gemini AI Filtered Bot is Running!", 200
+  return "CA2NET Multi-Asset ICT Bot is Running!", 200
 
 
 @app.route("/webhook", methods=["GET", "POST"])
@@ -79,47 +76,53 @@ def webhook():
   # Testim nga shfletuesi
   if request.method == "GET":
     send_telegram(
-        "🚨 <b>TEST BOTI (CA2NET)</b> 🚨\nFiltri i Gemini AI dhe lidhja me"
-        " Telegram funksionojnë përkryer!"
+        "🚨 <b>TEST MULTI-ASSET (CA2NET)</b> 🚨\nBoti është gati për XAU, EUR,"
+        " GBP, BTC!"
     )
     return "Testi u dërgua me sukses në Telegram!", 200
 
   try:
     data = request.get_json(force=True, silent=True)
     if data and isinstance(data, dict):
-      ticker = data.get("ticker", "XAUUSD")
+      ticker = data.get("ticker", "XAUUSD").upper()
       tf = data.get("tf", "1H")
       action = data.get("action", "BUY").upper()
       price = float(data.get("price", 0))
-      note = data.get("note", "1H FVG + Liquidity Sweep")
+      note = data.get("note", "ICT Set-up")
 
-      # 1. Kërkojmë nga Gemini të filtrojë sinjalin (Nuk dërgon sinjale kot)
+      # 1. Filtri i Gemini AI
       is_valid, ai_comment = analyze_and_filter_ict(
           ticker, tf, action, price, note
       )
 
-      # NËSE GEMINI THOTË "JO", BOTI NUK DËRGON GJË DHE MBYLLET
       if not is_valid:
-        print(f"Sinjali u bllokua nga Gemini: {ai_comment}")
-        return "Sinjali u refuzua nga AI (Nuk u dërgua)", 200
+        print(f"Sinjali u bllokua nga Gemini për {ticker}: {ai_comment}")
+        return "Sinjali u refuzua nga AI", 200
 
-      # 2. Nëse Gemini thotë "PO", llogarisim nivelet dhe i dërgojmë në Telegram
-      sl_dist = float(data.get("sl_dist", 6.0))
+      # 2. Llogaritja e SL dhe TP sipas llojit të asetit
+      if "BTC" in ticker:
+        sl_dist = float(data.get("sl_dist", 300.0))  # Për Bitcoin (distancë 300$)
+      elif "XAU" in ticker:
+        sl_dist = float(data.get("sl_dist", 6.0))  # Për Arin (distancë 6$)
+      else:
+        sl_dist = float(
+            data.get("sl_dist", 0.0020)
+        )  # Për Forex paritetet (EURUSD, GBPUSD - 20 pips)
 
       if "BUY" in action:
-        sl = round(float(data.get("sl", price - sl_dist)), 2)
+        sl = round(float(data.get("sl", price - sl_dist)), 4)
         risk = abs(price - sl)
-        tp1 = round(float(data.get("tp1", price + (risk * 2))), 2)
-        tp2 = round(float(data.get("tp2", price + (risk * 3))), 2)
+        tp1 = round(float(data.get("tp1", price + (risk * 2))), 4)
+        tp2 = round(float(data.get("tp2", price + (risk * 3))), 4)
         icon = "🟢"
       else:
-        sl = round(float(data.get("sl", price + sl_dist)), 2)
+        sl = round(float(data.get("sl", price + sl_dist)), 4)
         risk = abs(sl - price)
-        tp1 = round(float(data.get("tp1", price - (risk * 2))), 2)
-        tp2 = round(float(data.get("tp2", price - (risk * 3))), 2)
+        tp1 = round(float(data.get("tp1", price - (risk * 2))), 4)
+        tp2 = round(float(data.get("tp2", price - (risk * 3))), 4)
         icon = "🔴"
 
-      entry = round(price, 2)
+      entry = round(price, 4)
 
       msg = f"""
 🚨 <b>SINJAL ICT I KONFIRMUAR NGA AI</b> 🚨
@@ -142,7 +145,7 @@ def webhook():
 ⚡ <i>By Imsad Kamberi | CA2-NET</i>
 """
       send_telegram(msg)
-      return "Sinjali u filtrua, u konfirmua dhe u dërgua!", 200
+      return "Sinjali u filtrua dhe u dërgua me sukses!", 200
     else:
       raw_text = request.data.decode("utf-8").strip()
       send_telegram(
