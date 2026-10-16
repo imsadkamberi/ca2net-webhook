@@ -8,7 +8,7 @@ app = Flask(__name__)
 # ==========================================
 # KONFIGURIMET E TUA
 # ==========================================
-TELEGRAM_TOKEN = "8857720884:AAFZYZxsy3S16esXqamy1YGCADnb9XjiK7Q"
+TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "")
 CHAT_ID = "901764770"
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 
