@@ -34,8 +34,8 @@ def get_gemini_conversational_response(user_prompt):
     return "❌ <b>Gabim:</b> Mungon GEMINI_API_KEY te Render Environment!"
 
   try:
-    # Përdorim modelin më të ri të konfirmuar për API
-    model = genai.GenerativeModel("gemini-2.5-flash")
+    # Përdorim modelin e ri të kërkuar nga Google
+    model = genai.GenerativeModel("gemini-3.8-flash")
     prompt = f"""
         Ti je një bashkëpunëtor personal i zgjuar, i ngrohtë, angazhues dhe instruktor profesionist për Imsad Kamberi. 
         Përdoruesi të flet në Telegram për tregje, analiza (ICT/Forex/Crypto), teknologji, apo çfarë t'i duhet.
