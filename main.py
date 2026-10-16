@@ -35,7 +35,7 @@ def get_gemini_chat_analysis(user_prompt):
     return "Mungon Gemini API Key te Render Environment!"
 
   try:
-    model = genai.GenerativeModel("gemini-2.5-flash")
+   model = genai.GenerativeModel("gemini-1.5-flash")
     prompt = f"""
         Je një krye-analist i tregjeve Forex dhe Crypto me strategjinë ICT (Inner Circle Trader).
         Përdoruesi të ka kërkuar këtë analizë/aset: "{user_prompt}"
