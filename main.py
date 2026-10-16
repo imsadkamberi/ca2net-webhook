@@ -6,7 +6,7 @@ import requests
 app = Flask(__name__)
 
 # ==========================================
-# KONFIGURIMET E TUA
+# KONFIGURIMET E TUA (Lexohen nga Render Environment)
 # ==========================================
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "")
 CHAT_ID = "901764770"
@@ -68,7 +68,7 @@ def analyze_and_filter_ict(ticker, timeframe, action, price, note):
 
 @app.route("/", methods=["GET"])
 def home():
-  return "CA2NET Multi-Asset ICT Bot is Running!", 200
+  return "CA2NET Multi-Asset ICT AI Bot is Running!", 200
 
 
 @app.route("/webhook", methods=["GET", "POST"])
@@ -88,41 +88,47 @@ def webhook():
       tf = data.get("tf", "1H")
       action = data.get("action", "BUY").upper()
       price = float(data.get("price", 0))
-      note = data.get("note", "ICT Set-up")
+      note = data.get("note", "1H FVG + Liquidity Sweep")
 
-      # 1. Filtri i Gemini AI
+      # 1. Kërkojmë nga Gemini të filtrojë sinjalin
       is_valid, ai_comment = analyze_and_filter_ict(
           ticker, tf, action, price, note
       )
 
+      # NËSE GEMINI THOTË "JO", BOTI NUK DËRGON GJË DHE MBYLLET KËTU!
       if not is_valid:
         print(f"Sinjali u bllokua nga Gemini për {ticker}: {ai_comment}")
-        return "Sinjali u refuzua nga AI", 200
+        return "Sinjali u refuzua nga AI (Nuk u dërgua në Telegram)", 200
 
-      # 2. Llogaritja e SL dhe TP sipas llojit të asetit
+      # 2. Llogaritja e SL dhe TP e PËRSHTATUR PËR ÇDO ASET (BTC, XAU, FOREX)
       if "BTC" in ticker:
-        sl_dist = float(data.get("sl_dist", 300.0))  # Për Bitcoin (distancë 300$)
+        sl_dist = float(
+            data.get("sl_dist", 300.0)
+        )  # Distanca për Bitcoin (300$)
+        decimals = 2
       elif "XAU" in ticker:
-        sl_dist = float(data.get("sl_dist", 6.0))  # Për Arin (distancë 6$)
+        sl_dist = float(data.get("sl_dist", 6.0))  # Distanca për Arin (6$)
+        decimals = 2
       else:
         sl_dist = float(
             data.get("sl_dist", 0.0020)
-        )  # Për Forex paritetet (EURUSD, GBPUSD - 20 pips)
+        )  # Distanca për Forex paritetet (EURUSD, GBPUSD - 20 pips)
+        decimals = 4
 
       if "BUY" in action:
-        sl = round(float(data.get("sl", price - sl_dist)), 4)
+        sl = round(float(data.get("sl", price - sl_dist)), decimals)
         risk = abs(price - sl)
-        tp1 = round(float(data.get("tp1", price + (risk * 2))), 4)
-        tp2 = round(float(data.get("tp2", price + (risk * 3))), 4)
+        tp1 = round(float(data.get("tp1", price + (risk * 2))), decimals)
+        tp2 = round(float(data.get("tp2", price + (risk * 3))), decimals)
         icon = "🟢"
       else:
-        sl = round(float(data.get("sl", price + sl_dist)), 4)
+        sl = round(float(data.get("sl", price + sl_dist)), decimals)
         risk = abs(sl - price)
-        tp1 = round(float(data.get("tp1", price - (risk * 2))), 4)
-        tp2 = round(float(data.get("tp2", price - (risk * 3))), 4)
+        tp1 = round(float(data.get("tp1", price - (risk * 2))), decimals)
+        tp2 = round(float(data.get("tp2", price - (risk * 3))), decimals)
         icon = "🔴"
 
-      entry = round(price, 4)
+      entry = round(price, decimals)
 
       msg = f"""
 🚨 <b>SINJAL ICT I KONFIRMUAR NGA AI</b> 🚨
@@ -145,14 +151,9 @@ def webhook():
 ⚡ <i>By Imsad Kamberi | CA2-NET</i>
 """
       send_telegram(msg)
-      return "Sinjali u filtrua dhe u dërgua me sukses!", 200
-    else:
-      raw_text = request.data.decode("utf-8").strip()
-      send_telegram(
-          f"🚨 <b>SINJAL NGA TRADINGVIEW:</b>\n<code>{raw_text}</code>"
-      )
-      return "OK Raw", 200
+      return "Sinjali kaloi filtrin dhe u dërgua!", 200
 
+    return "Bad Request", 400
   except Exception as e:
     print(f"Webhook error: {e}")
     return f"Error: {e}", 500
