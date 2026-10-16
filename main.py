@@ -29,145 +29,44 @@ def send_telegram(chat_id, text):
     print(f"Gabim gjatë dërgimit në Telegram: {e}")
 
 
-def get_gemini_chat_analysis(user_prompt):
-  """Pyet Gemini AI për të krijuar një analizë ICT dhe sinjal bazuar në kërkesën e përdoruesit."""
+def get_gemini_conversational_response(user_prompt):
+  """Gjeneron një përgjigje natyrale, të ngrohtë dhe profesionale si asistent personal."""
   if not GEMINI_API_KEY:
     return "Mungon Gemini API Key te Render Environment!"
 
   try:
-   model = genai.GenerativeModel("gemini-1.5-flash")
+    model = genai.GenerativeModel("gemini-1.5-flash")
     prompt = f"""
-        Je një krye-analist i tregjeve Forex dhe Crypto me strategjinë ICT (Inner Circle Trader).
-        Përdoruesi të ka kërkuar këtë analizë/aset: "{user_prompt}"
-        Jep një analizë të shkurtër profesionale në gjuhën shqipe (max 2-3 fjali) duke përfshirë një strukturë të mundshme ICT (si FVG, Order Block, ose Liquidity Sweep) për këtë aset, dhe përcakto një drejtim (BUY ose SELL) me çmimin aktual të tregut.
+        Ti je një bashkëpunëtor personal i zgjuar, i ngrohtë, angazhues dhe instruktor profesionist për Imsad Kamberi. 
+        Përdoruesi të flet në Telegram për tregje, analiza (ICT/Forex/Crypto), teknologji, apo çfarë t'i duhet.
+        Përgjigju në gjuhën shqipe në mënyrë natyrale, të pasur, të strukturuar bukur (përdor emoji dhe formatim HTML si <b>, <i>, etj., ku duhet), duke i dhënë ndihmë praktike, profesionale dhe miqësore, fiks si një asistent i dedikuar AI.
         
-        Kthe përgjigjen në këtë format të saktë:
-        ASTI: [Emri i Asetit, p.sh. XAUUSD]
-        DREJTIMI: [BUY ose SELL]
-        ENTRY: [Një çmim realist aktual, p.sh. 4170.50]
-        ARSYEJA: [Analiza e shkurtër ICT]
+        Mesazhi i përdoruesi: "{user_prompt}"
         """
     response = model.generate_content(prompt)
     return response.text.strip()
   except Exception as e:
     print(f"Gemini error: {e}")
-    return "Nuk munda të përpunoj analizën për momentin. Provoni përsëri."
+    return "Më fal, pata një vështirësi të vogël për t'u lidhur. Provojeni përsëri!"
 
 
 @app.route("/", methods=["GET"])
 def home():
-  return "CA2NET Personal ICT AI Assistant Bot is Running!", 200
+  return "CA2NET Conversational AI Assistant is Running!", 200
 
 
-# Ky është webhook-u që pret mesazhet e tua nga Telegrami
 @app.route("/telegram-webhook", methods=["POST"])
 def telegram_webhook():
   try:
     data = request.get_json(force=True, silent=True)
-    print(f"Mesazhi i ardhur nga Telegrami: {data}")
-
     if data and "message" in data:
       chat_id = data["message"]["chat"]["id"]
       text = data["message"].get("text", "").strip()
 
       if text:
-        if text.lower() in ["/start", "përshëndetje", "pershendetje"]:
-          welcome_msg = """
-🤖 <b>Përshëndetje Imsad! Unë jam Asistenti yt Personal ICT & Gemini AI.</b>
-
-Mjafton të më shkruash emrin e çdo aseti (p.sh: <b>xauusd</b>, <b>eurusd</b>, <b>gbpusd</b>, <b>btcusd</b>) ose t'i kërkosh një analizë, dhe unë do të gjeneroj menjëherë një sinjal ICT me:
-• 📍 <i>Entry</i>
-• 🛑 <i>Stop Loss</i>
-• 🎯 <i>Take Profits</i>
-• 📋 <i>Copy me 1 klikim!</i>
-
-Shkruaj çfarë aseti dëshiron të analizojmë tani:
-"""
-          send_telegram(chat_id, welcome_msg)
-          return "OK", 200
-
-        # Lajmërojmë përdoruesin se po mendohet
-        send_telegram(
-            chat_id, "⏳ <i>Duke analizuar tregun përmes strategjisë ICT...</i>"
-        )
-
-        # Marrim përgjigjen nga Gemini AI
-        ai_response = get_gemini_chat_analysis(text)
-
-        # Përpunojmë tekstin për të nxjerrë të dhënat dhe për t'i llogaritur nivelet
-        ticker = "XAUUSD"
-        action = "BUY"
-        price = 4170.0
-        reason = ai_response
-
-        # Përpiqemi të lexojmë përgjigjen e Gemini nëse ka kthyer formatin e kërkuar
-        lines = ai_response.split("\n")
-        for line in lines:
-          if "ASTI:" in line:
-            ticker = line.replace("ASTI:", "").strip().upper()
-          elif "DREJTIMI:" in line:
-            action = line.replace("DREJTIMI:", "").strip().upper()
-          elif "ENTRY:" in line:
-            try:
-              price = float(
-                  line.replace("ENTRY:", "")
-                  .strip()
-                  .replace("$", "")
-                  .replace(",", "")
-              )
-            except:
-              pass
-          elif "ARSYEJA:" in line:
-            reason = line.replace("ARSYEJA:", "").strip()
-
-        # Llogaritja e SL dhe TP sipas llojit të asetit
-        if "BTC" in ticker:
-          sl_dist = 300.0
-          decimals = 2
-        elif "XAU" in ticker:
-          sl_dist = 6.0
-          decimals = 2
-        else:
-          sl_dist = 0.0020  # 20 pips për forex
-          decimals = 4
-
-        if "BUY" in action:
-          sl = round(price - sl_dist, decimals)
-          risk = abs(price - sl)
-          tp1 = round(price + (risk * 2), decimals)
-          tp2 = round(price + (risk * 3), decimals)
-          icon = "🟢"
-        else:
-          sl = round(price + sl_dist, decimals)
-          risk = abs(sl - price)
-          tp1 = round(price - (risk * 2), decimals)
-          tp2 = round(price - (risk * 3), decimals)
-          icon = "🔴"
-
-        entry = round(price, decimals)
-
-        # Krijimi i mesazhit final me Copy me 1 klik
-        final_msg = f"""
-🚨 <b>ANALIZA ICT (CA2NET AI)</b> 🚨
-
-📊 <b>Aseti:</b> #{ticker} (1H)
-{icon} <b>Veprimi:</b> <b>{action}</b>
-
-👇 <i>Kliko mbi numër për ta bërë Copy:</i>
-📍 <b>Entry:</b> <code>{entry}</code>
-🛑 <b>Stop Loss:</b> <code>{sl}</code>
-🎯 <b>Take Profit 1:</b> <code>{tp1}</code>
-🎯 <b>Take Profit 2:</b> <code>{tp2}</code>
-
-🤖 <b>Analiza e Gemini AI:</b>
-<i>{reason}</i>
-
-📋 <b>Copy të gjithë rreshtin:</b>
-<code>{ticker} {action} {entry} SL {sl} TP1 {tp1} TP2 {tp2}</code>
-
-⚡ <i>By Imsad Kamberi | CA2-NET</i>
-"""
-        send_telegram(chat_id, final_msg)
+        # Përgjigjemi në mënyrë bisedore me AI
+        ai_response = get_gemini_conversational_response(text)
+        send_telegram(chat_id, ai_response)
 
     return "OK", 200
   except Exception as e:
