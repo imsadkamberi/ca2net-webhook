@@ -6,7 +6,7 @@ import requests
 app = Flask(__name__)
 
 # ==========================================
-# KONFIGURIMET E TUA (Lexohen nga Render Environment)
+# KONFIGURIMET E TUA
 # ==========================================
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
@@ -30,11 +30,11 @@ def send_telegram(chat_id, text):
 
 
 def get_gemini_conversational_response(user_prompt):
-  """Gjeneron një përgjigje natyrale, të ngrohtë dhe profesionale si asistent personal."""
   if not GEMINI_API_KEY:
-    return "Mungon Gemini API Key te Render Environment!"
+    return "❌ <b>Gabim:</b> Mungon GEMINI_API_KEY te Render Environment!"
 
   try:
+    # Përdorim modelin standard zyrtar
     model = genai.GenerativeModel("gemini-1.5-flash")
     prompt = f"""
         Ti je një bashkëpunëtor personal i zgjuar, i ngrohtë, angazhues dhe instruktor profesionist për Imsad Kamberi. 
@@ -46,8 +46,8 @@ def get_gemini_conversational_response(user_prompt):
     response = model.generate_content(prompt)
     return response.text.strip()
   except Exception as e:
-    print(f"Gemini error: {e}")
-    return "Më fal, pata një vështirësi të vogël për t'u lidhur. Provojeni përsëri!"
+    print(f"Gemini error detaje: {e}")
+    return f"❌ <b>Gemini Error:</b> <code>{str(e)}</code>"
 
 
 @app.route("/", methods=["GET"])
